@@ -43,7 +43,7 @@ request = ResponsesAgentRequest(
     input=[
         {
             "role": "user",
-            "content": "give me the count of products purchased for each client_id. Explain the reasoning on how you got to your response. If you queried the customer transactions agent, then also return the raw payload from that agent in your anwer",
+            "content": "give me the count of products purchased for each client_id. Explain the reasoning on how you got to your response.",
         }
     ]
 )

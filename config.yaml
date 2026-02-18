@@ -5,7 +5,7 @@ mlflow_config:
   experiment_name: /Users/ben.doan@databricks.com/dynamic_auth_agent
   registered_model_name: doan.dynamic_governance_example.dynamic_auth_agent
 agent_config:
-  llm_endpoint_name: databricks-claude-sonnet-4-5
+  llm_endpoint_name: databricks-claude-sonnet-4-6
   genie_space_id: 01f10d0b2baf1a3996db0de2a453d4c9
   genie_agent_name: customer_transactions_agent
   genie_agent_description: "This agent can answer questions about customer transactions via Genie."
