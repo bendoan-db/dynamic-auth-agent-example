@@ -1,2 +1,16 @@
-
 .databricks
+
+# Python
+__pycache__/
+*.pyc
+
+# Virtual environments
+.venv/
+venv/
+
+# MLflow
+mlruns/
+mlartifacts/
+
+# Claude
+.claude/
