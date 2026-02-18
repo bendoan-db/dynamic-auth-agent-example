@@ -1,5 +1,6 @@
 # Databricks notebook source
 
+
 # COMMAND ----------
 
 import json
@@ -36,7 +37,7 @@ client = DatabricksFunctionClient()
 set_uc_function_client(client)
 
 # Load configuration
-config = mlflow.models.ModelConfig(development_config="config.yaml")
+config = mlflow.models.ModelConfig(development_config="../config.yaml")
 
 # COMMAND ----------
 
