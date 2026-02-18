@@ -1,0 +1,5 @@
+databricks_config:
+  catalog: doan # TODO: add catalog
+  schema: dynamic_governance_example # TODO: add schema
+genie_config:
+  genie_space_id: 
