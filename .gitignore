@@ -11,6 +11,10 @@ venv/
 # MLflow
 mlruns/
 mlartifacts/
+mlflow.db
 
 # Claude
 .claude/
+CLAUDE.md
+
+.vscode
