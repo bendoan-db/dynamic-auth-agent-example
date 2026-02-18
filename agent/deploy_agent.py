@@ -2,6 +2,8 @@
 
 # COMMAND ----------
 
+import os
+
 import mlflow
 from mlflow.models.resources import DatabricksServingEndpoint, DatabricksGenieSpace
 from mlflow.models.auth_policy import AuthPolicy, SystemAuthPolicy, UserAuthPolicy
@@ -9,7 +11,16 @@ from mlflow.models.auth_policy import AuthPolicy, SystemAuthPolicy, UserAuthPoli
 mlflow.set_tracking_uri("databricks")
 mlflow.set_registry_uri("databricks-uc")
 
-config = mlflow.models.ModelConfig(development_config="config.yaml")
+# Resolve project root: __file__ is available in IDE, CWD is repo root in Databricks
+if "__file__" in dir():
+    _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+else:
+    _project_root = os.getcwd()
+
+_config_path = os.path.join(_project_root, "config.yaml")
+_agent_path = os.path.join(_project_root, "agent", "agent.py")
+
+config = mlflow.models.ModelConfig(development_config=_config_path)
 
 mlflow_config = config.get("mlflow_config")
 agent_config = config.get("agent_config")
@@ -29,8 +40,8 @@ registered_model_name = mlflow_config.get("registered_model_name")
 with mlflow.start_run():
     model_info = mlflow.pyfunc.log_model(
         name="agent",
-        python_model="agent.py",
-        model_config="config.yaml",
+        python_model=_agent_path,
+        model_config=_config_path,
         registered_model_name=registered_model_name,
         auth_policy=AuthPolicy(
             system_auth_policy=SystemAuthPolicy(

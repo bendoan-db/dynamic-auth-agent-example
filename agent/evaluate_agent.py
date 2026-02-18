@@ -30,8 +30,7 @@ mlflow.set_tracking_uri("databricks")
 mlflow.set_registry_uri("databricks-uc")  # Use Unity Catalog for model registry
 
 # Set MLflow experiment from config, create if it doesn't exist
-#experiment_name = agent_module.config.get("mlflow_config").get("experiment_name")
-experiment_name = "/Users/ben.doan@databricks.com/dynamic_auth_agent"
+experiment_name = agent_module.config.get("mlflow_config").get("experiment_name")
 experiment = mlflow.get_experiment_by_name(experiment_name)
 if experiment is None:
     mlflow.create_experiment(experiment_name)

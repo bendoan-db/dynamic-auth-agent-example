@@ -4,6 +4,7 @@
 # COMMAND ----------
 
 import json
+import os
 from typing import Generator, Literal
 from uuid import uuid4
 
@@ -36,8 +37,15 @@ from pydantic import BaseModel
 client = DatabricksFunctionClient()
 set_uc_function_client(client)
 
-# Load configuration
-config = mlflow.models.ModelConfig(development_config="../config.yaml")
+# Resolve project root: __file__ is available in IDE, CWD is repo root in Databricks
+if "__file__" in dir():
+    _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+else:
+    _project_root = os.getcwd()
+
+config = mlflow.models.ModelConfig(
+    development_config=os.path.join(_project_root, "config.yaml")
+)
 
 # COMMAND ----------
 
