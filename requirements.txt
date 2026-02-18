@@ -1,0 +1,16 @@
+databricks-sdk
+databricks-ai-bridge
+databricks-connect
+pyyaml
+mlflow[databricks]
+langgraph
+databricks-langchain[memory]
+unitycatalog-langchain
+langchain-openai
+langchain
+langchain_core
+langchain_community
+langgraph-supervisor
+lark
+databricks-agents
+pydantic

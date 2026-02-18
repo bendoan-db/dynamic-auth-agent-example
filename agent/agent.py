@@ -1,8 +1,14 @@
+# Databricks notebook source
+
+# COMMAND ----------
+
 import json
 from typing import Generator, Literal
 from uuid import uuid4
 
 import mlflow
+from databricks.sdk import WorkspaceClient
+from databricks_ai_bridge import ModelServingUserCredentials
 from databricks_langchain import (
     ChatDatabricks,
     DatabricksFunctionClient,
@@ -24,12 +30,17 @@ from mlflow.types.responses import (
 )
 from pydantic import BaseModel
 
+# COMMAND ----------
+
 client = DatabricksFunctionClient()
 set_uc_function_client(client)
 
-########################################
+# Load configuration
+config = mlflow.models.ModelConfig(development_config="config.yaml")
+
+# COMMAND ----------
+
 # Create your LangGraph Supervisor Agent
-########################################
 
 GENIE = "genie"
 
@@ -56,6 +67,8 @@ class InCodeSubAgent(BaseModel):
 
 TOOLS = []
 
+# COMMAND ----------
+
 
 def stringify_content(state):
     msgs = state["messages"]
@@ -68,6 +81,7 @@ def create_langgraph_supervisor(
     llm: Runnable,
     externally_served_agents: list[ServedSubAgent] = [],
     in_code_agents: list[InCodeSubAgent] = [],
+    user_client: WorkspaceClient = None,
 ):
     agents = []
     agent_descriptions = ""
@@ -84,11 +98,14 @@ def create_langgraph_supervisor(
         agent_descriptions += f"- {agent.name}: {agent.description}\n"
         if isinstance(agent, Genie):
             # to better control the messages sent to the genie agent, you can use the `message_processor` param: https://api-docs.databricks.com/python/databricks-ai-bridge/latest/databricks_langchain.html#databricks_langchain.GenieAgent
-            genie_agent = GenieAgent(
+            genie_kwargs = dict(
                 genie_space_id=agent.space_id,
                 genie_agent_name=agent.name,
                 description=agent.description,
             )
+            if user_client:
+                genie_kwargs["client"] = user_client
+            genie_agent = GenieAgent(**genie_kwargs)
             genie_agent.name = agent.name
             agents.append(genie_agent)
         else:
@@ -106,16 +123,7 @@ def create_langgraph_supervisor(
                 )
             )
 
-    # TODO: The supervisor prompt includes agent names/descriptions as well as general
-    # instructions. You can modify this to improve quality or provide custom instructions.
-    prompt = f"""
-    You are a supervisor in a multi-agent system.
-
-    1. Understand the user's last request
-    2. Read through the entire chat history.
-    3. If the answer to the user's last request is present in chat history, answer using information in the history.
-    4. If the answer is not in the history, from the below list of agents, determine which agent is best suited to answer the question.
-    5. Provide a summarized response to the user's last query, even if it's been answered before.
+    prompt = f"""{config.get("agent_config").get("system_prompt")}
 
     {agent_descriptions}"""
 
@@ -127,15 +135,25 @@ def create_langgraph_supervisor(
         output_mode="full_history",
     ).compile()
 
+# COMMAND ----------
 
-##########################################
 # Wrap LangGraph Supervisor as a ResponsesAgent
-##########################################
 
 
 class LangGraphResponsesAgent(ResponsesAgent):
-    def __init__(self, agent: CompiledStateGraph):
-        self.agent = agent
+    def _initialize_agent(self) -> CompiledStateGraph:
+        """Initialize the supervisor per-request for on-behalf-of user authentication.
+        User identity is only available at query time, so OBO resources (e.g. GenieAgent)
+        must be created here rather than at module load."""
+        try:
+            user_client = WorkspaceClient(
+                credentials_strategy=ModelServingUserCredentials()
+            )
+        except Exception:
+            user_client = None
+        return create_langgraph_supervisor(
+            llm, EXTERNALLY_SERVED_AGENTS, user_client=user_client
+        )
 
     def predict(self, request: ResponsesAgentRequest) -> ResponsesAgentResponse:
         outputs = [
@@ -149,12 +167,13 @@ class LangGraphResponsesAgent(ResponsesAgent):
         self,
         request: ResponsesAgentRequest,
     ) -> Generator[ResponsesAgentStreamEvent, None, None]:
+        agent = self._initialize_agent()
         cc_msgs = to_chat_completions_input([i.model_dump() for i in request.input])
         first_message = True
         seen_ids = set()
 
         # can adjust `recursion_limit` to limit looping: https://docs.langchain.com/oss/python/langgraph/GRAPH_RECURSION_LIMIT#troubleshooting
-        for _, events in self.agent.stream({"messages": cc_msgs}, stream_mode=["updates"]):
+        for _, events in agent.stream({"messages": cc_msgs}, stream_mode=["updates"]):
             new_msgs = [
                 msg
                 for v in events.values()
@@ -177,50 +196,27 @@ class LangGraphResponsesAgent(ResponsesAgent):
             if len(new_msgs) > 0:
                 yield from output_to_responses_items_stream(new_msgs)
 
+# COMMAND ----------
 
-#######################################################
 # Configure the Foundation Model and Serving Sub-Agents
-#######################################################
 
-# TODO: Replace with your model serving endpoint
-LLM_ENDPOINT_NAME = "databricks-claude-sonnet-4-5"
+agent_config = config.get("agent_config")
+
+LLM_ENDPOINT_NAME = agent_config.get("llm_endpoint_name")
 llm = ChatDatabricks(endpoint=LLM_ENDPOINT_NAME)
 
-# TODO: Add the necessary information about each of your subagents. Subagents could be agents deployed to Model Serving endpoints or Genie Space subagents.
-# Your agent descriptions are crucial for improving quality. Include as much detail as possible.
 EXTERNALLY_SERVED_AGENTS = [
     Genie(
-        space_id="<your_genie_space_id>",
-        name="<your-genie-name>",
-        description="This agent can answer questions...",
+        space_id=agent_config.get("genie_space_id"),
+        name=agent_config.get("genie_agent_name"),
+        description=agent_config.get("genie_agent_description"),
     ),
-    # ServedSubAgent(
-    #     endpoint_name="cities-agent",
-    #     name="city-agent", # choose a semantically relevant name for your agent
-    #     task="agent/v1/responses",
-    #     description="This agent can answer questions about the best cities to visit in the world.",
-    # ),
 ]
 
-############################################################
-# Create additional agents in code
-############################################################
+# COMMAND ----------
 
-# TODO: Fill the following with UC function-calling agents. The tools parameter is a list of UC function names that you want your agent to call.
-IN_CODE_AGENTS = [
-    InCodeSubAgent(
-        tools=["system.ai.*"],
-        name="code execution agent",
-        description="The code execution agent specializes in solving programming challenges, generating code snippets, debugging issues, and explaining complex coding concepts.",
-    )
-]
-
-#################################################
-# Create supervisor and set up MLflow for tracing
-#################################################
-
-supervisor = create_langgraph_supervisor(llm, EXTERNALLY_SERVED_AGENTS, IN_CODE_AGENTS)
+# Set up MLflow for tracing
 
 mlflow.langchain.autolog()
-AGENT = LangGraphResponsesAgent(supervisor)
+AGENT = LangGraphResponsesAgent()
 mlflow.models.set_model(AGENT)
