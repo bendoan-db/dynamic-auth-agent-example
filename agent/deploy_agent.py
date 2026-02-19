@@ -49,19 +49,18 @@ with mlflow.start_run():
                     DatabricksServingEndpoint(
                         endpoint_name=agent_config.get("llm_endpoint_name")
                     ),
+                    DatabricksGenieSpace(
+                        genie_space_id=agent_config.get("genie_space_id")
+                    ),
                 ]
             ),
             user_auth_policy=UserAuthPolicy(
                 api_scopes=[
                     "serving.serving-endpoints",
+                    "dashboards.genie"
                 ]
             ),
         ),
-        resources=[
-            DatabricksGenieSpace(
-                genie_space_id=agent_config.get("genie_space_id")
-            ),
-        ],
     )
 
 print(f"Model logged: {model_info.model_uri}")

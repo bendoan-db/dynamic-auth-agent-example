@@ -1,6 +1,7 @@
 databricks_config:
   catalog: doan # TODO: add catalog
   schema: dynamic_governance_example # TODO: add schema
+  host: https://fe-vm-vdm-classic-hkbucz.cloud.databricks.com/
 mlflow_config:
   experiment_name: /Users/ben.doan@databricks.com/dynamic_auth_agent
   registered_model_name: doan.dynamic_governance_example.dynamic_auth_agent
@@ -18,3 +19,4 @@ agent_config:
     4. If the answer is not in the history, from the below list of agents, determine which agent is best suited to answer the question.
     5. Provide a summarized response to the user's question.
     6. You should only use the Genie agent's response to formulate your answer. DO NOT make any additional inferences.
+  serving_endpoint_name: agents_doan-dynamic_governance_example-dynamic_auth_agent
