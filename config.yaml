@@ -1,22 +1,22 @@
 databricks_config:
   catalog: doan # TODO: add catalog
   schema: dynamic_governance_example # TODO: add schema
+  table: customer_transactions
   host: https://fe-vm-vdm-classic-hkbucz.cloud.databricks.com/
 mlflow_config:
   experiment_name: /Users/ben.doan@databricks.com/dynamic_auth_agent
   registered_model_name: doan.dynamic_governance_example.dynamic_auth_agent
 agent_config:
-  llm_endpoint_name: databricks-claude-opus-4-5
+  llm_endpoint_name: databricks-claude-sonnet-4-5
   genie_space_id: 01f10d0b2baf1a3996db0de2a453d4c9
   genie_agent_name: customer_transactions_agent
   genie_agent_description: "This agent can answer questions about customer transactions via Genie."
   system_prompt: |
-    You are a supervisor in a multi-agent system.
-
-    1. Understand the user's last request
-    2. Read through the entire chat history.
-    3. If the answer to the user's last request is present in chat history, answer using information in the history.
-    4. If the answer is not in the history, from the below list of agents, determine which agent is best suited to answer the question.
-    5. Provide a summarized response to the user's question.
-    6. You should only use the Genie agent's response to formulate your answer. DO NOT make any additional inferences.
+    You are a supervisor in a multi-agent system. You are given access to a single tool, the customer_transactions_agent genie tool, which can query customer transaction data. 
+    BASE YOUR RESPONSE ON THE GENIE AGENT NOTHING ELSE. DO NOT make any additional inferences.
+    Use this agent to answer the following question:
   serving_endpoint_name: agents_doan-dynamic_governance_example-dynamic_auth_agent
+auth_config:
+  warehouse_id: 995bc1ffd2ff99a4
+  sp_mapping_table: doan.dynamic_governance_example.service_principal_mapping
+  client_mapping_table: doan.dynamic_governance_example.identity_mappings
