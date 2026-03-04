@@ -56,6 +56,7 @@ def create_langchain_agent(user_client: WorkspaceClient = None) -> CompiledState
         genie_space_id=GENIE_SPACE_ID,
         genie_agent_name=GENIE_AGENT_NAME,
         description=GENIE_AGENT_DESCRIPTION,
+        include_context=True
     )
     if user_client:
         genie_kwargs["client"] = user_client
