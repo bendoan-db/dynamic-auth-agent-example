@@ -190,25 +190,57 @@ def query_endpoint(message: str, history: list[dict], user_id: str, client_id: s
 
 # COMMAND ----------
 
-with gr.Blocks() as demo:
-    gr.Markdown(
-        f"# Dynamic Auth Agent\n\n"
-        f"Chat with the deployed agent at endpoint: `{SERVING_ENDPOINT_NAME}`\n\n"
-        f"This agent uses on-behalf-of authentication to enforce row-level security."
+def login_and_switch(user_id_val: str, client_id_val: str):
+    """Run credential setup and toggle from login to chat screen on success."""
+    result = use_credentials(user_id_val, client_id_val)
+    if result.startswith("Credentials set"):
+        return (
+            gr.update(visible=False),   # hide login group
+            gr.update(visible=True),    # show chat group
+            "",                         # clear status
+            user_id_val,                # store user_id in state
+            client_id_val,              # store client_id in state
+            f"Logged in as **{user_id_val}** (client: {client_id_val})",
+        )
+    # Login failed — stay on login screen, show error
+    return (
+        gr.update(visible=True),
+        gr.update(visible=False),
+        result,
+        "",
+        "",
+        "",
     )
-    with gr.Row():
+
+
+with gr.Blocks() as demo:
+    user_id_state = gr.State("")
+    client_id_state = gr.State("")
+
+    # ── Login screen ──
+    with gr.Group(visible=True) as login_group:
+        gr.Markdown(
+            "# Dynamic Auth Agent\n\n"
+            "Enter your credentials to start chatting.\n\n"
+            "This agent uses on-behalf-of authentication to enforce row-level security."
+        )
         user_id = gr.Textbox(label="User ID", placeholder="Enter your user ID")
         client_id = gr.Textbox(label="Client ID", placeholder="Enter your client ID")
-        use_creds_btn = gr.Button("Use Credentials", scale=0)
-    status_text = gr.Textbox(label="Status", interactive=False)
-    use_creds_btn.click(
-        fn=use_credentials,
+        login_btn = gr.Button("Log In", variant="primary")
+        status_text = gr.Textbox(label="Status", interactive=False)
+
+    # ── Chat screen ──
+    with gr.Group(visible=False) as chat_group:
+        logged_in_label = gr.Markdown("")
+        gr.ChatInterface(
+            fn=query_endpoint,
+            additional_inputs=[user_id_state, client_id_state],
+        )
+
+    login_btn.click(
+        fn=login_and_switch,
         inputs=[user_id, client_id],
-        outputs=[status_text],
-    )
-    gr.ChatInterface(
-        fn=query_endpoint,
-        additional_inputs=[user_id, client_id],
+        outputs=[login_group, chat_group, status_text, user_id_state, client_id_state, logged_in_label],
     )
 
 if __name__ == "__main__":
